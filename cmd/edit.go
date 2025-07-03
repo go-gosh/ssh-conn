@@ -23,7 +23,12 @@ var editCmd = &cobra.Command{
 			fmt.Fprintln(cmd.OutOrStdout(), "--host 必填")
 			return
 		}
-		configPath := os.ExpandEnv("$HOME/.ssh/config")
+		home, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintln(cmd.OutOrStdout(), "无法获取用户主目录:", err)
+			return
+		}
+		configPath := home + "/.ssh/config"
 		input, err := os.ReadFile(configPath)
 		if err != nil {
 			fmt.Fprintln(cmd.OutOrStdout(), "无法读取 ssh config:", err)

@@ -125,7 +125,11 @@ func parseTags(s string) []string {
 
 // 获取所有主机名
 func getAllHosts() ([]string, error) {
-	configPath := os.ExpandEnv("$HOME/.ssh/config")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	configPath := home + "/.ssh/config"
 	file, err := os.Open(configPath)
 	if err != nil {
 		return nil, err
