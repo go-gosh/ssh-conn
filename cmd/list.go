@@ -40,6 +40,9 @@ func getFilteredHosts(cfg *ssh_config.Config, tagList []string) []hostInfo {
 			continue
 		}
 		name := host.Patterns[0].String()
+		if name == "" {
+			continue
+		}
 		hostname, _ := cfg.Get(name, "HostName")
 		tags, _ := db.GetTags(name)
 		if len(tagList) > 0 {
