@@ -2,77 +2,79 @@ package cmd
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
-func TestTagCommands(t *testing.T) {
-	home := os.TempDir() + "/tagtest"
-	os.Setenv("HOME", home)
-	os.RemoveAll(home)
+func TestTagAndListCommands(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	os.MkdirAll(home+"/.ssh", 0700)
-	defer os.RemoveAll(home)
+	os.MkdirAll(home+"/.ssh-conn", 0700)
 	host := "cmdhost"
 	configPath := home + "/.ssh/config"
-	content := `Host cmdhost
-    HostName 1.1.1.1
-    User user
-    Port 22`
-	ioutil.WriteFile(configPath, []byte(content), 0600)
+	content := "Host cmdhost\n    HostName 1.1.1.1\n    User user\n    Port 22"
+	content = strings.ReplaceAll(content, "\\n", "\n")
+	os.WriteFile(configPath, []byte(content), 0600)
 	buf := new(bytes.Buffer)
-	// add
+
+	// tag add
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "add", host, "--tags", "foo,bar/baz"})
+	rootCmd.SetArgs([]string{"tag", "add", "foo", host})
 	rootCmd.Execute()
+	addOut := buf.String()
+	if !strings.Contains(addOut, "添加标签成功") {
+		t.Fatalf("tag add output error: %s", addOut)
+	}
+	buf.Reset()
+
+	// tag ls
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"tag", "ls"})
+	rootCmd.Execute()
+	lsOut := buf.String()
+	if !strings.Contains(lsOut, "foo") || !strings.Contains(lsOut, host) {
+		t.Fatalf("ls should show all tags and hosts, got %s", lsOut)
+	}
+	buf.Reset()
+
 	// list
-	buf.Reset()
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "list", host})
+	rootCmd.SetArgs([]string{"list"})
 	rootCmd.Execute()
-	out := buf.String()
-	if !strings.Contains(out, "foo") || !strings.Contains(out, "bar/baz") {
-		t.Fatalf("list should show all tags, got %s", out)
+	listOut := buf.String()
+	if !strings.Contains(listOut, host) || !strings.Contains(listOut, "foo") {
+		t.Fatalf("list output error: %s", listOut)
 	}
-	// edit
 	buf.Reset()
+
+	// list --tag foo
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "edit", host, "--tags", "dev/ops"})
+	rootCmd.SetArgs([]string{"list", "--tag", "foo"})
 	rootCmd.Execute()
-	buf.Reset()
-	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "list", host})
-	rootCmd.Execute()
-	out = buf.String()
-	if !strings.Contains(out, "dev/ops") {
-		t.Fatalf("edit should overwrite tags, got %s", out)
+	tagListOut := buf.String()
+	if !strings.Contains(tagListOut, host) {
+		t.Fatalf("list tag filter error: %s", tagListOut)
 	}
-	// remove
 	buf.Reset()
+
+	// tag rm
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "remove", host, "--tags", "dev/ops"})
+	rootCmd.SetArgs([]string{"tag", "rm", "foo", host})
 	rootCmd.Execute()
-	buf.Reset()
-	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "list", host})
-	rootCmd.Execute()
-	out = buf.String()
-	if strings.Contains(out, "dev/ops") {
-		t.Fatalf("remove should delete tag, got %s", out)
+	rmOut := buf.String()
+	if !strings.Contains(rmOut, "移除标签成功") {
+		t.Fatalf("tag rm output error: %s", rmOut)
 	}
-	// 再添加 foo，保证 all 能查到标签
 	buf.Reset()
+
+	// tag ls again
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "add", host, "--tags", "foo"})
+	rootCmd.SetArgs([]string{"tag", "ls"})
 	rootCmd.Execute()
-	// all
-	buf.Reset()
-	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"tag", "all"})
-	rootCmd.Execute()
-	out = buf.String()
-	if !strings.Contains(out, "foo") {
-		t.Fatalf("all should list all tags, got %s", out)
+	lsOut2 := buf.String()
+	if strings.Contains(lsOut2, host) {
+		t.Fatalf("rm should remove host from tag, got %s", lsOut2)
 	}
 }

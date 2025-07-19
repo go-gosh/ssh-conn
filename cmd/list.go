@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-gosh/ssh-conn/db"
+	"github.com/go-gosh/ssh-conn/internal/tags"
 
 	"github.com/kevinburke/ssh_config"
 	"github.com/spf13/cobra"
@@ -19,6 +19,7 @@ var (
 	sortBy  string
 	order   string
 	connect bool
+	orMode  bool
 )
 
 // 彩色输出标签
@@ -33,7 +34,7 @@ type hostInfo struct {
 	Tags     []string
 }
 
-func getFilteredHosts(cfg *ssh_config.Config, tagList []string) []hostInfo {
+func getFilteredHosts(cfg *ssh_config.Config, tagList []string, orMode bool) []hostInfo {
 	hosts := []hostInfo{}
 	for _, host := range cfg.Hosts {
 		if len(host.Patterns) == 0 {
@@ -44,27 +45,42 @@ func getFilteredHosts(cfg *ssh_config.Config, tagList []string) []hostInfo {
 			continue
 		}
 		hostname, _ := cfg.Get(name, "HostName")
-		tags, _ := db.GetTags(name)
+		tagNames, _ := tags.GetTags(name)
 		if len(tagList) > 0 {
-			matched := true
-			for _, want := range tagList {
-				found := false
-				for _, t := range tags {
-					if strings.HasPrefix(t, want) {
-						found = true
+			matched := false
+			if orMode {
+				for _, want := range tagList {
+					for _, t := range tagNames {
+						if t == want {
+							matched = true
+							break
+						}
+					}
+					if matched {
 						break
 					}
 				}
-				if !found {
-					matched = false
-					break
+			} else {
+				matched = true
+				for _, want := range tagList {
+					found := false
+					for _, t := range tagNames {
+						if t == want {
+							found = true
+							break
+						}
+					}
+					if !found {
+						matched = false
+						break
+					}
 				}
 			}
 			if !matched {
 				continue
 			}
 		}
-		hosts = append(hosts, hostInfo{Name: name, HostName: hostname, Tags: tags})
+		hosts = append(hosts, hostInfo{Name: name, HostName: hostname, Tags: tagNames})
 	}
 	return hosts
 }
@@ -147,7 +163,7 @@ var listCmd = &cobra.Command{
 				tagList[i] = strings.TrimSpace(tagList[i])
 			}
 		}
-		hosts := getFilteredHosts(cfg, tagList)
+		hosts := getFilteredHosts(cfg, tagList, orMode)
 		sortHosts(hosts, sortBy, order)
 		printHosts(cmd, hosts)
 		if connect && len(hosts) == 1 {
@@ -161,8 +177,9 @@ var listCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(listCmd)
-	listCmd.Flags().StringVarP(&tag, "tag", "t", "", "按标签前缀筛选主机")
+	listCmd.Flags().StringVarP(&tag, "tag", "t", "", "按标签筛选主机，逗号分隔")
 	listCmd.Flags().StringVar(&sortBy, "sort", "host", "排序字段，可选 host/hostname，默认host")
 	listCmd.Flags().StringVar(&order, "order", "asc", "排序方式，可选 asc/desc，默认asc")
 	listCmd.Flags().BoolVarP(&connect, "connect", "c", false, "是否连接主机")
+	listCmd.Flags().BoolVar(&orMode, "or", false, "标签筛选使用 OR 逻辑（默认 AND）")
 }

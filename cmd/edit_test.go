@@ -12,10 +12,8 @@ func TestEditCommand(t *testing.T) {
 	os.Setenv("HOME", home)
 	os.MkdirAll(home+"/.ssh", 0700)
 	configPath := home + "/.ssh/config"
-	content := `Host edittest
-    HostName 1.1.1.1
-    User old
-    Port 22`
+	content := "Host edittest\n    HostName 1.1.1.1\n    User old\n    Port 22"
+	content = strings.ReplaceAll(content, "\\n", "\n")
 	ioutil.WriteFile(configPath, []byte(content), 0600)
 
 	editHost = "edittest"

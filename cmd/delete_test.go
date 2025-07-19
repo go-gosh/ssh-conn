@@ -12,11 +12,10 @@ func TestDeleteCommand(t *testing.T) {
 	os.Setenv("HOME", home)
 	os.MkdirAll(home+"/.ssh", 0700)
 	configPath := home + "/.ssh/config"
-	content := `Host deltest
-    HostName 1.1.1.1
-    User user
-    Port 22`
+	content := "Host deltest\n    HostName 1.1.1.1\n    User user\n    Port 22"
+	content = strings.ReplaceAll(content, "\\n", "\n")
 	ioutil.WriteFile(configPath, []byte(content), 0600)
+
 	delHost = "deltest"
 	deleteCmd.Run(deleteCmd, nil)
 	data, err := ioutil.ReadFile(configPath)
